@@ -1,16 +1,59 @@
-# React + Vite
+# SyncFlow — CPU Scheduling Visualizer ⚡
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> *"Watch your CPU think."*
 
-Currently, two official plugins are available:
+SyncFlow is an interactive, dark glassmorphic web application that simulates, animates, and compares CPU scheduling algorithms in real-time. Built for Operating System students, developers, and educators.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Live Demo & Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Core Modules
+- **Pure CPU Scheduling Engine**: FCFS, SJF, SRTF, Priority (Preemptive & Non-Preemptive with Aging), Round Robin (configurable quantum & context-switch penalty), Multilevel Queue (MLQ), and Multilevel Feedback Queue (MLFQ).
+- **Animated Gantt Timeline Visualizer**: Live block-by-block progression, context-switch stripes, idle blocks, playback controls ($0.5\times \dots 4\times$), time scrubber, and *"Explain This Moment"* decision rule inspection.
+- **Live Metrics Dashboard**: Real-time cards ($Avg WT, Avg TAT, Avg RT, \text{Throughput}$), glowing animated circular CPU utilization gauge, and sortable per-process metrics table.
+- **Race Mode (Multi-Algorithm Comparison)**: Synchronized side-by-side timeline simulation for 2–6 algorithms with Recharts comparative bar charts and an automatic **Optimal Efficiency Winner** badge.
+- **System Monitor Panel**: Sci-fi CPU Core Spotlight ("Currently Running"), live horizontal Ready Queue visualizer, and terminal-style Event Log.
+- **Interactive OS Demos**: Starvation & Aging rescue showcase, Convoy Effect comparison (FCFS vs SJF), and Round Robin Quantum Sensitivity Tuner.
+- **Export & Report Tools**: High-resolution PNG Gantt image export, PDF report generation, and JSON scenario import/export.
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 🛠️ Tech Stack
+
+- **Frontend**: React 19, Vite
+- **Styling**: Tailwind CSS, Custom Glassmorphism tokens, Google Fonts (Inter, Sora, JetBrains Mono)
+- **Charts & UI**: Recharts, Lucide Icons, Canvas Confetti
+- **Exports**: `html-to-image`, `jsPDF`
+
+---
+
+## 💻 Local Setup Instructions
+
+```bash
+# 1. Clone repository
+git clone https://github.com/YOUR_USERNAME/syncflow.git
+cd syncflow
+
+# 2. Install dependencies
+npm install
+
+# 3. Start development server
+npm run dev
+```
+
+---
+
+## 🌐 Deploying to GitHub Pages
+
+This project is pre-configured with `gh-pages` and relative asset paths (`base: './'`).
+
+```bash
+# Deploy to GitHub Pages automatically
+npm run deploy
+```
+
+---
+
+## 📄 License
+MIT License © 2026 SyncFlow Team
