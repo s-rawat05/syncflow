@@ -42,18 +42,18 @@ export function calculateMetrics(processes, timeline, totalTime, contextSwitchCo
   processes.forEach(p => {
     // Find the last block where this process ran
     const pBlocks = timeline.filter(b => b.pid === p.pid && b.type === 'run');
-    const completionTime = pBlocks.length > 0 ? Math.max(...pBlocks.map(b => b.end)) : p.arrivalTime;
+    const completionTime = pBlocks.length > 0 ? Math.max(...pBlocks.map(b => b.end || 0)) : (p.arrivalTime || 0);
     
-    const turnaroundTime = completionTime - p.arrivalTime;
-    const waitingTime = turnaroundTime - p.burstTime;
-    const responseTime = (firstRunTime[p.pid] !== undefined ? firstRunTime[p.pid] : p.arrivalTime) - p.arrivalTime;
+    const turnaroundTime = completionTime - (p.arrivalTime || 0);
+    const waitingTime = turnaroundTime - (p.burstTime || 0);
+    const responseTime = (firstRunTime[p.pid] !== undefined ? firstRunTime[p.pid] : (p.arrivalTime || 0)) - (p.arrivalTime || 0);
 
     metrics[p.pid] = {
       id: p.id,
       pid: p.pid,
-      arrivalTime: p.arrivalTime,
-      burstTime: p.burstTime,
-      priority: p.priority,
+      arrivalTime: p.arrivalTime || 0,
+      burstTime: p.burstTime || 0,
+      priority: p.priority || 1,
       completionTime,
       turnaroundTime: Math.max(0, turnaroundTime),
       waitingTime: Math.max(0, waitingTime),
@@ -64,6 +64,7 @@ export function calculateMetrics(processes, timeline, totalTime, contextSwitchCo
 
   const processList = Object.values(metrics);
   const n = processList.length;
+  const validTotalTime = isNaN(totalTime) || totalTime < 0 ? 0 : totalTime;
 
   if (n === 0) {
     return {
@@ -87,14 +88,14 @@ export function calculateMetrics(processes, timeline, totalTime, contextSwitchCo
 
   const totalIdleTime = timeline
     .filter(b => b.type === 'idle')
-    .reduce((acc, b) => acc + (b.end - b.start), 0);
+    .reduce((acc, b) => acc + Math.max(0, (b.end || 0) - (b.start || 0)), 0);
 
   const totalBusyTime = timeline
     .filter(b => b.type === 'run')
-    .reduce((acc, b) => acc + (b.end - b.start), 0);
+    .reduce((acc, b) => acc + Math.max(0, (b.end || 0) - (b.start || 0)), 0);
 
-  const cpuUtilization = totalTime > 0 ? Math.min(100, Math.round((totalBusyTime / totalTime) * 1000) / 10) : 0;
-  const throughput = totalTime > 0 ? Math.round((n / totalTime) * 1000) / 1000 : 0;
+  const cpuUtilization = validTotalTime > 0 ? Math.min(100, Math.round((totalBusyTime / validTotalTime) * 1000) / 10) : 0;
+  const throughput = validTotalTime > 0 ? Math.round((n / validTotalTime) * 1000) / 1000 : 0;
 
   return {
     processMetrics: processList,
@@ -102,9 +103,9 @@ export function calculateMetrics(processes, timeline, totalTime, contextSwitchCo
       avgWaitingTime: Math.round((sumWT / n) * 100) / 100,
       avgTurnaroundTime: Math.round((sumTAT / n) * 100) / 100,
       avgResponseTime: Math.round((sumRT / n) * 100) / 100,
-      cpuUtilization,
-      throughput,
-      totalDuration: totalTime,
+      cpuUtilization: isNaN(cpuUtilization) ? 0 : cpuUtilization,
+      throughput: isNaN(throughput) ? 0 : throughput,
+      totalDuration: validTotalTime,
       contextSwitches: contextSwitchCount,
       idleTime: totalIdleTime
     }
@@ -115,15 +116,19 @@ export function calculateMetrics(processes, timeline, totalTime, contextSwitchCo
 // 1. FCFS (First Come First Served) - Non Preemptive
 // ----------------------------------------------------
 export function simulateFCFS(processes, options = {}) {
-  const cs = options.csOverhead || 0;
+  const cs = Math.max(0, options.csOverhead || 0);
   let currentTime = 0;
   const timeline = [];
   const eventLog = [];
   let csCount = 0;
 
   // Copy and sort by Arrival Time (break tie by PID)
-  const procList = processes.map((p, i) => ({ ...p, color: getProcessColor(i) }))
-    .sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
+  const procList = processes.map((p, i) => ({
+    ...p,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    color: getProcessColor(i)
+  })).sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
 
   let lastPid = null;
 
@@ -189,7 +194,7 @@ export function simulateFCFS(processes, options = {}) {
 // 2. SJF (Shortest Job First) - Non Preemptive
 // ----------------------------------------------------
 export function simulateSJF(processes, options = {}) {
-  const cs = options.csOverhead || 0;
+  const cs = Math.max(0, options.csOverhead || 0);
   let currentTime = 0;
   const timeline = [];
   const eventLog = [];
@@ -197,20 +202,26 @@ export function simulateSJF(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
     color: getProcessColor(i),
     completed: false
   }));
 
   let completedCount = 0;
   let lastPid = null;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
 
-  while (completedCount < procs.length) {
+  while (completedCount < procs.length && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
     const ready = procs.filter(p => !p.completed && p.arrivalTime <= currentTime);
 
     if (ready.length === 0) {
-      // Find next arrival time
       const uncompleted = procs.filter(p => !p.completed);
-      const nextArrival = Math.min(...uncompleted.map(p => p.arrivalTime));
+      if (uncompleted.length === 0) break;
+      const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
       timeline.push({
         start: currentTime,
         end: nextArrival,
@@ -272,7 +283,7 @@ export function simulateSJF(processes, options = {}) {
 // 3. SRTF (Shortest Remaining Time First) - Preemptive
 // ----------------------------------------------------
 export function simulateSRTF(processes, options = {}) {
-  const cs = options.csOverhead || 0;
+  const cs = Math.max(0, options.csOverhead || 0);
   let currentTime = 0;
   const timeline = [];
   const eventLog = [];
@@ -280,19 +291,26 @@ export function simulateSRTF(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
-    remainingTime: p.burstTime,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    remainingTime: Math.max(1, p.burstTime || 1),
     color: getProcessColor(i),
     completed: false
   }));
 
-  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime, 0) + 100;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
   let lastPid = null;
 
-  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit) {
+  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
     const ready = procs.filter(p => !p.completed && p.arrivalTime <= currentTime);
 
     if (ready.length === 0) {
-      const nextArrival = Math.min(...procs.filter(p => !p.completed).map(p => p.arrivalTime));
+      const uncompleted = procs.filter(p => !p.completed);
+      if (uncompleted.length === 0) break;
+      const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
       timeline.push({
         start: currentTime,
         end: nextArrival,
@@ -318,10 +336,11 @@ export function simulateSRTF(processes, options = {}) {
     if (futureArrivals.length > 0) {
       const nextArrival = Math.min(...futureArrivals);
       const timeToNextArrival = nextArrival - currentTime;
-      if (timeToNextArrival < runDuration) {
+      if (timeToNextArrival > 0 && timeToNextArrival < runDuration) {
         runDuration = timeToNextArrival;
       }
     }
+    runDuration = Math.max(1, Math.min(runDuration, currentProc.remainingTime));
 
     if (cs > 0 && lastPid && lastPid !== currentProc.pid) {
       csCount++;
@@ -356,7 +375,8 @@ export function simulateSRTF(processes, options = {}) {
     currentTime += runDuration;
     currentProc.remainingTime -= runDuration;
 
-    if (currentProc.remainingTime === 0) {
+    if (currentProc.remainingTime <= 0) {
+      currentProc.remainingTime = 0;
       currentProc.completed = true;
       eventLog.push({ time: currentTime, type: 'info', message: `${currentProc.pid} finished execution at t=${currentTime}` });
     }
@@ -395,8 +415,8 @@ function mergeTimelineBlocks(timeline) {
 export function simulatePriority(processes, options = {}) {
   const isPreemptive = options.preemptive !== false;
   const agingEnabled = !!options.agingEnabled;
-  const agingInterval = options.agingInterval || 5; // Every 5 units of waiting, priority decreases (higher priority value = lower numerical rank, 1 is highest priority)
-  const cs = options.csOverhead || 0;
+  const agingInterval = Math.max(1, options.agingInterval || 5);
+  const cs = Math.max(0, options.csOverhead || 0);
 
   let currentTime = 0;
   const timeline = [];
@@ -405,16 +425,23 @@ export function simulatePriority(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
-    remainingTime: p.burstTime,
-    effectivePriority: p.priority, // Lower number = higher priority
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    remainingTime: Math.max(1, p.burstTime || 1),
+    effectivePriority: p.priority || 1,
     waitingCounter: 0,
     color: getProcessColor(i),
     completed: false
   }));
 
   let lastPid = null;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
 
-  while (procs.some(p => !p.completed)) {
+  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
+
     // Apply aging to waiting processes if enabled
     if (agingEnabled && currentTime > 0) {
       procs.forEach(p => {
@@ -435,7 +462,9 @@ export function simulatePriority(processes, options = {}) {
     const ready = procs.filter(p => !p.completed && p.arrivalTime <= currentTime);
 
     if (ready.length === 0) {
-      const nextArrival = Math.min(...procs.filter(p => !p.completed).map(p => p.arrivalTime));
+      const uncompleted = procs.filter(p => !p.completed);
+      if (uncompleted.length === 0) break;
+      const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
       timeline.push({
         start: currentTime,
         end: nextArrival,
@@ -455,7 +484,7 @@ export function simulatePriority(processes, options = {}) {
     ready.sort((a, b) => a.effectivePriority - b.effectivePriority || a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
     const currentProc = ready[0];
 
-    const runDuration = isPreemptive ? 1 : currentProc.remainingTime;
+    const runDuration = isPreemptive ? Math.min(1, currentProc.remainingTime) : currentProc.remainingTime;
 
     if (cs > 0 && lastPid && lastPid !== currentProc.pid) {
       csCount++;
@@ -493,7 +522,8 @@ export function simulatePriority(processes, options = {}) {
     currentTime += runDuration;
     currentProc.remainingTime -= runDuration;
 
-    if (currentProc.remainingTime === 0) {
+    if (currentProc.remainingTime <= 0) {
+      currentProc.remainingTime = 0;
       currentProc.completed = true;
       eventLog.push({ time: currentTime, type: 'info', message: `${currentProc.pid} completed at t=${currentTime}` });
     }
@@ -510,8 +540,8 @@ export function simulatePriority(processes, options = {}) {
 // 5. Round Robin (RR) - Preemptive with Quantum & CS Overhead
 // ----------------------------------------------------
 export function simulateRoundRobin(processes, options = {}) {
-  const quantum = options.timeQuantum || 2;
-  const cs = options.csOverhead || 0;
+  const quantum = Math.max(1, options.timeQuantum || 2);
+  const cs = Math.max(0, options.csOverhead || 0);
 
   let currentTime = 0;
   const timeline = [];
@@ -520,7 +550,9 @@ export function simulateRoundRobin(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
-    remainingTime: p.burstTime,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    remainingTime: Math.max(1, p.burstTime || 1),
     color: getProcessColor(i),
     completed: false,
     inQueue: false
@@ -538,14 +570,17 @@ export function simulateRoundRobin(processes, options = {}) {
     p.inQueue = true;
   });
 
-  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 100;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
 
-  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit) {
+  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
     if (readyQueue.length === 0) {
       // Check if any process is arriving later
       const uncompleted = procs.filter(p => !p.completed && !p.inQueue);
       if (uncompleted.length > 0) {
-        const nextArrival = Math.min(...uncompleted.map(p => p.arrivalTime));
+        const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
         timeline.push({
           start: currentTime,
           end: nextArrival,
@@ -588,7 +623,7 @@ export function simulateRoundRobin(processes, options = {}) {
       currentTime += cs;
     }
 
-    const executeTime = Math.min(quantum, currentProc.remainingTime);
+    const executeTime = Math.max(1, Math.min(quantum, currentProc.remainingTime));
 
     const remMap = {};
     procs.forEach(p => remMap[p.pid] = p.remainingTime);
@@ -619,7 +654,8 @@ export function simulateRoundRobin(processes, options = {}) {
       p.inQueue = true;
     });
 
-    if (currentProc.remainingTime === 0) {
+    if (currentProc.remainingTime <= 0) {
+      currentProc.remainingTime = 0;
       currentProc.completed = true;
       eventLog.push({ time: currentTime, type: 'info', message: `${currentProc.pid} completed execution at t=${currentTime}` });
     } else {
@@ -641,8 +677,8 @@ export function simulateRoundRobin(processes, options = {}) {
 export function simulateMLQ(processes, options = {}) {
   // Queue 0: High Priority (Round Robin q=2)
   // Queue 1: Low Priority (FCFS)
-  const quantum = options.timeQuantum || 2;
-  const cs = options.csOverhead || 0;
+  const quantum = Math.max(1, options.timeQuantum || 2);
+  const cs = Math.max(0, options.csOverhead || 0);
 
   let currentTime = 0;
   const timeline = [];
@@ -651,20 +687,30 @@ export function simulateMLQ(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
-    remainingTime: p.burstTime,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    remainingTime: Math.max(1, p.burstTime || 1),
     queueLevel: p.queueLevel !== undefined ? p.queueLevel : (p.priority <= 2 ? 0 : 1),
     color: getProcessColor(i),
     completed: false
   }));
 
   let lastPid = null;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
 
-  while (procs.some(p => !p.completed)) {
+  let q0Head = 0;
+
+  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
     const readyQ0 = procs.filter(p => !p.completed && p.arrivalTime <= currentTime && p.queueLevel === 0);
     const readyQ1 = procs.filter(p => !p.completed && p.arrivalTime <= currentTime && p.queueLevel === 1);
 
     if (readyQ0.length === 0 && readyQ1.length === 0) {
-      const nextArrival = Math.min(...procs.filter(p => !p.completed).map(p => p.arrivalTime));
+      const uncompleted = procs.filter(p => !p.completed);
+      if (uncompleted.length === 0) break;
+      const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
       timeline.push({
         start: currentTime,
         end: nextArrival,
@@ -685,15 +731,17 @@ export function simulateMLQ(processes, options = {}) {
 
     if (readyQ0.length > 0) {
       // High priority queue runs RR
-      readyQ0.sort((a, b) => a.arrivalTime - b.arrivalTime);
-      currentProc = readyQ0[0];
-      executeTime = Math.min(quantum, currentProc.remainingTime);
+      readyQ0.sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
+      const idx = q0Head % readyQ0.length;
+      currentProc = readyQ0[idx];
+      q0Head = (q0Head + 1) % readyQ0.length;
+      executeTime = Math.max(1, Math.min(quantum, currentProc.remainingTime));
       decisionReason = `${currentProc.pid} selected from High-Priority Queue 0 (RR q=${quantum})`;
     } else {
       // Low priority queue runs FCFS
-      readyQ1.sort((a, b) => a.arrivalTime - b.arrivalTime);
+      readyQ1.sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
       currentProc = readyQ1[0];
-      executeTime = currentProc.remainingTime; // Non-preemptive FCFS for Q1
+      executeTime = Math.max(1, currentProc.remainingTime);
       decisionReason = `${currentProc.pid} selected from Low-Priority Queue 1 (FCFS)`;
     }
 
@@ -734,7 +782,8 @@ export function simulateMLQ(processes, options = {}) {
     currentTime += executeTime;
     currentProc.remainingTime -= executeTime;
 
-    if (currentProc.remainingTime === 0) {
+    if (currentProc.remainingTime <= 0) {
+      currentProc.remainingTime = 0;
       currentProc.completed = true;
       eventLog.push({ time: currentTime, type: 'info', message: `${currentProc.pid} completed at t=${currentTime}` });
     }
@@ -756,7 +805,7 @@ export function simulateMLFQ(processes, options = {}) {
   // Q2: FCFS
   const q0Quantum = 2;
   const q1Quantum = 4;
-  const cs = options.csOverhead || 0;
+  const cs = Math.max(0, options.csOverhead || 0);
 
   let currentTime = 0;
   const timeline = [];
@@ -765,19 +814,30 @@ export function simulateMLFQ(processes, options = {}) {
 
   let procs = processes.map((p, i) => ({
     ...p,
-    remainingTime: p.burstTime,
+    arrivalTime: Math.max(0, p.arrivalTime || 0),
+    burstTime: Math.max(1, p.burstTime || 1),
+    remainingTime: Math.max(1, p.burstTime || 1),
     currentQueue: 0, // Starts at highest priority Q0
     color: getProcessColor(i),
     completed: false
   }));
 
   let lastPid = null;
+  const maxTimeLimit = procs.reduce((acc, p) => acc + p.arrivalTime + p.burstTime + (cs * 5), 0) + 1000;
+  let steps = 0;
+  const maxSteps = 5000;
 
-  while (procs.some(p => !p.completed)) {
+  let q0Head = 0;
+  let q1Head = 0;
+
+  while (procs.some(p => !p.completed) && currentTime < maxTimeLimit && steps < maxSteps) {
+    steps++;
     const ready = procs.filter(p => !p.completed && p.arrivalTime <= currentTime);
 
     if (ready.length === 0) {
-      const nextArrival = Math.min(...procs.filter(p => !p.completed).map(p => p.arrivalTime));
+      const uncompleted = procs.filter(p => !p.completed);
+      if (uncompleted.length === 0) break;
+      const nextArrival = Math.max(currentTime + 1, Math.min(...uncompleted.map(p => p.arrivalTime)));
       timeline.push({
         start: currentTime,
         end: nextArrival,
@@ -803,18 +863,25 @@ export function simulateMLFQ(processes, options = {}) {
     let quantumUsed = 0;
 
     if (q0List.length > 0) {
-      currentProc = q0List[0];
+      q0List.sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
+      const idx = q0Head % q0List.length;
+      currentProc = q0List[idx];
+      q0Head = (q0Head + 1) % q0List.length;
       quantumUsed = q0Quantum;
-      executeTime = Math.min(q0Quantum, currentProc.remainingTime);
+      executeTime = Math.max(1, Math.min(q0Quantum, currentProc.remainingTime));
       decisionReason = `${currentProc.pid} running in Q0 (RR q=${q0Quantum})`;
     } else if (q1List.length > 0) {
-      currentProc = q1List[0];
+      q1List.sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
+      const idx = q1Head % q1List.length;
+      currentProc = q1List[idx];
+      q1Head = (q1Head + 1) % q1List.length;
       quantumUsed = q1Quantum;
-      executeTime = Math.min(q1Quantum, currentProc.remainingTime);
+      executeTime = Math.max(1, Math.min(q1Quantum, currentProc.remainingTime));
       decisionReason = `${currentProc.pid} running in Q1 (RR q=${q1Quantum})`;
     } else if (q2List.length > 0) {
+      q2List.sort((a, b) => a.arrivalTime - b.arrivalTime || a.pid.localeCompare(b.pid));
       currentProc = q2List[0];
-      executeTime = currentProc.remainingTime; // FCFS
+      executeTime = Math.max(1, currentProc.remainingTime); // FCFS
       decisionReason = `${currentProc.pid} running in Q2 (FCFS background queue)`;
     }
 
@@ -849,7 +916,8 @@ export function simulateMLFQ(processes, options = {}) {
     currentTime += executeTime;
     currentProc.remainingTime -= executeTime;
 
-    if (currentProc.remainingTime === 0) {
+    if (currentProc.remainingTime <= 0) {
+      currentProc.remainingTime = 0;
       currentProc.completed = true;
       eventLog.push({ time: currentTime, type: 'info', message: `${currentProc.pid} completed at t=${currentTime}` });
     } else {

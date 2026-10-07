@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { runSimulation } from '../../engine/schedulerEngine';
 import { ALGORITHM_OPTIONS } from '../ControlsPanel';
 import BestPerformerBadge from './BestPerformerBadge';
 import PerformanceChart from './PerformanceChart';
 import PlaybackBar from '../GanttChart/PlaybackBar';
-import { Trophy, Check, Play, Pause, RefreshCw } from 'lucide-react';
+import { Trophy, Check, Play, Pause } from 'lucide-react';
 
 export default function ComparisonView({ processes, timeQuantum, csOverhead, agingEnabled, agingInterval }) {
   const [selectedAlgos, setSelectedAlgos] = useState(['FCFS', 'SJF', 'SRTF', 'RR']);
@@ -22,24 +22,36 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
     }
   };
 
-  // Run simulation for all selected algorithms
-  const results = selectedAlgos.map(algoId => {
-    const algoObj = ALGORITHM_OPTIONS.find(a => a.id === algoId);
-    const sim = runSimulation(algoId, processes, {
-      timeQuantum,
-      csOverhead,
-      agingEnabled,
-      agingInterval
+  // Run simulation for all selected algorithms with memoization
+  const results = useMemo(() => {
+    return selectedAlgos.map(algoId => {
+      const algoObj = ALGORITHM_OPTIONS.find(a => a.id === algoId);
+      const sim = runSimulation(algoId, processes, {
+        timeQuantum,
+        csOverhead,
+        agingEnabled,
+        agingInterval
+      });
+      return {
+        algorithmId: algoId,
+        algorithmName: algoObj?.label || algoId,
+        ...sim
+      };
     });
-    return {
-      algorithmId: algoId,
-      algorithmName: algoObj?.label || algoId,
-      ...sim
-    };
-  });
+  }, [selectedAlgos, processes, timeQuantum, csOverhead, agingEnabled, agingInterval]);
 
-  // Calculate max timeline duration across all compared algorithms
-  const maxDuration = Math.max(...results.map(r => r.summaryMetrics.totalDuration), 1);
+  // Calculate max timeline duration across all compared algorithms safely
+  const maxDuration = useMemo(() => {
+    const rawMax = Math.max(...results.map(r => r.summaryMetrics?.totalDuration || 1), 1);
+    return isNaN(rawMax) || rawMax <= 0 ? 1 : rawMax;
+  }, [results]);
+
+  // Clamp currentTime if maxDuration changes
+  useEffect(() => {
+    if (currentTime > maxDuration) {
+      setCurrentTime(maxDuration);
+    }
+  }, [maxDuration, currentTime]);
 
   // Synchronized playback animation loop
   useEffect(() => {
@@ -130,8 +142,9 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
               {/* Mini Timeline Bar */}
               <div className="flex h-10 w-full rounded-lg overflow-hidden border border-white/10 bg-[#0E0E17] p-1 gap-1 relative">
                 {res.timeline.map((block, bIdx) => {
-                  const widthPct = maxDuration > 0 ? ((block.end - block.start) / maxDuration) * 100 : 0;
-                  const isVisible = block.start < currentTime;
+                  const duration = Math.max(0, (block.end || 0) - (block.start || 0));
+                  const widthPct = maxDuration > 0 ? (duration / maxDuration) * 100 : 0;
+                  const isVisible = (block.start || 0) < currentTime;
 
                   if (block.type === 'idle') {
                     return (
@@ -173,7 +186,7 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
                 {/* Vertical Synchronized Time Marker */}
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-pink-400 z-10 transition-all duration-100"
-                  style={{ left: `${(currentTime / maxDuration) * 100}%` }}
+                  style={{ left: `${maxDuration > 0 ? Math.min(100, Math.max(0, (currentTime / maxDuration) * 100)) : 0}%` }}
                 />
               </div>
             </div>
@@ -201,3 +214,4 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
     </div>
   );
 }
+
