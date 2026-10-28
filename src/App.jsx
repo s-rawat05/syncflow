@@ -433,6 +433,7 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={(user) => setCurrentUser(user)}
+        isServerOnline={isServerOnline}
       />
 
       {/* Scenarios Management Modal */}

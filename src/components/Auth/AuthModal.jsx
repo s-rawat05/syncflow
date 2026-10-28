@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Lock, Mail, User, LogIn, UserPlus, AlertCircle, Sparkles } from 'lucide-react';
 import { api } from '../../services/apiClient';
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, isServerOnline = true }) {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -90,6 +90,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             Create Account
           </button>
         </div>
+
+        {/* Server Offline Notice */}
+        {!isServerOnline && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-200">Backend Server Offline</p>
+              <p className="text-[11px] text-amber-300/80 mt-0.5">
+                Database and auth require running <code className="bg-black/30 px-1 py-0.5 rounded text-white font-mono">npm run server</code> locally. (Static hosts like GitHub Pages do not run Node.js/SQLite).
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Error Notice */}
         {error && (

@@ -68,7 +68,15 @@ class ApiClient {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const error = new Error(data.error || `HTTP ${response.status}`);
+        let errorMsg = data.error;
+        if (!errorMsg) {
+          if (response.status === 405) {
+            errorMsg = 'Backend server unavailable (HTTP 405). The database and authentication require running the backend server locally (npm run server) or deploying the API server.';
+          } else {
+            errorMsg = `HTTP ${response.status}`;
+        }
+        }
+        const error = new Error(errorMsg);
         error.status = response.status;
         error.data = data;
         throw error;
