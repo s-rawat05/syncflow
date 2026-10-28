@@ -146,3 +146,34 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 
 ### Open Issues / Notes
 - None. Ready for Phase 4 (Auth API).
+
+---
+
+## Phase 4 — Auth API
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. Implemented JWT authentication and verification middleware in [`server/middleware/auth.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/middleware/auth.js) supporting `requireAuth` and `optionalAuth` with 7-day token expiration.
+2. Built authentication endpoints in [`server/routes/auth.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/auth.js):
+   - `POST /api/auth/signup`: Validates name (2–60 chars), email format, and password (minimum 8 chars). Hashes passwords with bcryptjs (salt rounds 10). Rejects duplicate emails with HTTP 409 without leaking internal database stack traces. Returns JWT and safe user object.
+   - `POST /api/auth/login`: Authenticates credentials with constant-time comparison. Returns uniform HTTP 401 "Invalid email or password" error on unknown email or incorrect password, preventing user enumeration attacks. Returns 7-day JWT and safe user object.
+   - `GET /api/auth/me`: Protected endpoint returning authenticated user profile from token.
+3. Connected auth router to Express application in [`server/app.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/app.js).
+4. Implemented and verified test suite in [`test/auth.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/auth.test.js).
+
+### Files Changed / Created
+- Created: [`server/middleware/auth.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/middleware/auth.js)
+- Created: [`server/routes/auth.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/auth.js)
+- Created: [`test/auth.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/auth.test.js)
+- Modified: [`server/app.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/app.js)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm test`: 21 of 21 tests passed across 4 test suites.
+- Validated password hashing, JWT creation/expiry, security against user enumeration, and protected route gating.
+
+### Open Issues / Notes
+- None. Ready for Phase 5 (Scenarios and runs API).

@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+import { createAuthRouter } from './routes/auth.js';
+
 dotenv.config();
 
-export function createApp() {
+export function createApp(customDb = null) {
   const app = express();
 
   const allowedOrigins = [
@@ -32,5 +34,9 @@ export function createApp() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  // Auth routes
+  app.use('/api/auth', createAuthRouter(customDb));
+
   return app;
 }
+
