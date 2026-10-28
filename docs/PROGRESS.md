@@ -282,3 +282,55 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 ### Open Issues / Notes
 - None. Ready for Phase 7 (Demo data, SQL queries, index evidence).
 
+---
+
+## Phase 7 — Demo Data, SQL Queries, and Index Evidence
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. **Demo Seed Script (`server/db/seed_demo.js`):**
+   - Implemented `npm run db:seed-demo` which drops and resets the database, then creates 3 demo users (`Alice Turing`, `Bob Ritchie`, `Charlie Hopper`) with bcrypt-hashed passwords from `.env` `DEMO_PASSWORD`.
+   - Seeds 7 distinct scenarios across Alice and Bob (Textbook Classic, Convoy Effect Demo, Test A Benchmark, Starvation & Aging Showcase, Quantum Sensitivity, MLFQ Dynamic Queue Flow, Test B Priority Benchmark).
+   - Charlie Hopper is intentionally left with 0 runs to serve as positive test data for Query 7 (`LEFT JOIN ... IS NULL`).
+   - Simulates all 8 scheduling algorithms on scenarios using the real pure engine in Node.js, storing queue configs, 263 Gantt slots, and 123 process metrics in atomic transactions.
+   - Includes Race Mode groups (`Race_Textbook_Showdown`, `Race_Convoy_Benchmark`) and context-switch overhead runs ($cs=1$).
+   - Verifies that `vw_metrics_mismatch` returns exactly 0 rows across all 30 generated runs.
+2. **Query Documentation Generator (`server/db/generate_query_docs.js`):**
+   - Implemented `npm run docs:queries` which executes the 12 required demonstration SQL queries against the active database and generates [`docs/SQL_QUERIES.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/SQL_QUERIES.md).
+   - Documented purpose, DBMS concept, SQL statement, and rendered real tabular markdown outputs for all 12 queries:
+     1. User scenarios with process counts (JOIN + GROUP BY)
+     2. Scenarios with $> 4$ processes (HAVING)
+     3. Average waiting time per algorithm across all runs (Aggregate)
+     4. Best algorithm per scenario (Window function `RANK() OVER (PARTITION BY ScenarioID ORDER BY AvgWT)`)
+     5. Runs with above-average waiting time for their scenario (Correlated subquery)
+     6. Processes that waited longer than their own burst time
+     7. Users with no saved runs (`LEFT JOIN ... IS NULL`)
+     8. Context-switch overhead per algorithm (Conditional aggregation `SUM(CASE WHEN ...)`)
+     9. CPU utilization ranking from `vw_run_summary`
+     10. Set-theoretic integrity verification audit (`vw_metrics_mismatch` returning 0 rows)
+     11. Chronological Gantt timeline slice sequence (Indexed lookup)
+     12. Race groups and their optimal winners (CTE + Window function)
+3. **Index Evidence & EXPLAIN QUERY PLAN:**
+   - Evaluated Query 11 with primary key `GanttSlots(RunID, Seq)` (`SEARCH g USING INDEX sqlite_autoindex_GanttSlots_1 (RunID=?)`) versus unindexed (`SCAN g` + `USE TEMP B-TREE FOR ORDER BY`).
+   - Evaluated Query 3 with covering index `idx_runs_scenario_algo` (`SEARCH r USING COVERING INDEX idx_runs_scenario_algo (ScenarioID=?)`) versus unindexed (`SCAN m`).
+   - Authored technical paragraphs explaining the elimination of temporary sort B-trees and avoidance of full-table scans.
+
+### Files Changed / Created
+- Created: [`server/db/seed_demo.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/seed_demo.js)
+- Created: [`server/db/generate_query_docs.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/generate_query_docs.js)
+- Created: [`docs/SQL_QUERIES.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/SQL_QUERIES.md)
+- Modified: [`package.json`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/package.json)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm run db:seed-demo`: Exit code 0 (30 runs, 263 slots, 123 metrics seeded; 0 mismatches in `vw_metrics_mismatch`).
+- `npm run docs:queries`: Exit code 0 (all 12 queries and EXPLAIN plans executed and written to `docs/SQL_QUERIES.md`).
+- `npm test`: 26 of 26 tests passed.
+
+### Open Issues / Notes
+- None. Ready for Phase 8 (Documentation & final delivery).
+
+

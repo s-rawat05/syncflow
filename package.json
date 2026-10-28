@@ -11,6 +11,8 @@
     "deploy": "gh-pages -d dist",
     "test": "node --test test/**/*.test.js",
     "db:reset": "node server/db/reset.js",
+    "db:seed-demo": "node server/db/seed_demo.js",
+    "docs:queries": "node server/db/generate_query_docs.js",
     "server": "node server/index.js"
   },
   "dependencies": {
