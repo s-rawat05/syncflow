@@ -3,6 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { createAuthRouter } from './routes/auth.js';
+import { createAlgorithmsRouter } from './routes/algorithms.js';
+import { createScenariosRouter } from './routes/scenarios.js';
+import { createRunsRouter } from './routes/runs.js';
+import { createMeRouter } from './routes/me.js';
 
 dotenv.config();
 
@@ -34,9 +38,12 @@ export function createApp(customDb = null) {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Auth routes
+  // Mount API Routers
   app.use('/api/auth', createAuthRouter(customDb));
+  app.use('/api/algorithms', createAlgorithmsRouter(customDb));
+  app.use('/api/scenarios', createScenariosRouter(customDb));
+  app.use('/api/runs', createRunsRouter(customDb));
+  app.use('/api/me', createMeRouter(customDb));
 
   return app;
 }
-

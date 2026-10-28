@@ -177,3 +177,58 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 
 ### Open Issues / Notes
 - None. Ready for Phase 5 (Scenarios and runs API).
+
+---
+
+## Phase 5 — Scenarios and Runs API
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. Implemented complete REST API for scenarios, runs, algorithms, and analytics:
+   - [`server/routes/algorithms.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/algorithms.js): `GET /api/algorithms` returning algorithm parameters and capability flags.
+   - [`server/routes/scenarios.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/scenarios.js):
+     - `GET /api/scenarios`: User's scenarios with aggregated process count and run count.
+     - `GET /api/scenarios/public`: Public scenarios with owner name and process count.
+     - `POST /api/scenarios`: Single-transaction scenario + processes creation.
+     - `GET /api/scenarios/:id`: Scenario detail with processes (respecting public/private permissions).
+     - `PUT /api/scenarios/:id`: Scenario update with automatic HTTP 409 conflict detection when processes are locked by existing runs, including `canSaveAsCopy: true` hint.
+     - `POST /api/scenarios/:id/duplicate`: Duplicates scenario and processes in one transaction.
+     - `DELETE /api/scenarios/:id`: Owner-only cascading delete.
+     - `POST /api/scenarios/import`: Ingests SyncFlow's JSON export format.
+     - `GET /api/scenarios/:id/leaderboard`: Retrieves window-ranked algorithm standings from `vw_algorithm_leaderboard`.
+   - [`server/routes/runs.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/runs.js):
+     - `POST /api/runs`: Saves single simulation run (run row + queue configs + Gantt slots + metrics) in **one transaction**.
+     - `POST /api/runs/race`: Saves multiple concurrent Race Mode runs with a unified `RaceGroup` in **one transaction**.
+     - `GET /api/runs?scenarioId=`: Filterable run history from `vw_run_summary`.
+     - `GET /api/runs/:id`: Replays saved run's full parameters, queue configs, Gantt slots, and metrics without re-simulating.
+     - `GET /api/runs/:id/verify`: Independent SQL verification returning `vw_metrics_mismatch` rows and verification status.
+   - [`server/routes/me.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/me.js): `GET /api/me/stats` returning user metrics from `vw_user_activity`.
+2. Implemented transaction rollback demo flag: `failAfterSlots: N` (accepted in non-production environments) that aborts mid-transaction to prove atomicity.
+3. Authored comprehensive test suite in [`test/api.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/api.test.js) validating all routes, error handlers, duplicate title protection, and transaction rollback.
+4. Verified that `/verify` returns 0 mismatches for **every algorithm** on **every built-in preset scenario** (`textbook`, `convoy`, `starvation`, `quantum-demo`, `mlfq-demo`).
+
+### Bug Fix in Engine
+- **Location:** [`src/engine/schedulerEngine.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/engine/schedulerEngine.js#L693)
+- **Problem:** In `simulateMLQ`, processes assigned a queue level $> 1$ (such as P5 in the built-in textbook preset, which had `queueLevel: 2`) were never placed into either `readyQ0` (`queueLevel === 0`) or `readyQ1` (`queueLevel === 1`), causing them to starve infinitely and fail the database `TurnaroundTime > 0` domain check.
+- **Resolution:** Clamped non-zero queue level assignments to 1 (`Number(p.queueLevel) === 0 ? 0 : 1`) so all background/lower priority processes are properly serviced in the secondary FCFS queue.
+
+### Files Changed / Created
+- Created: [`server/routes/algorithms.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/algorithms.js)
+- Created: [`server/routes/scenarios.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/scenarios.js)
+- Created: [`server/routes/runs.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/runs.js)
+- Created: [`server/routes/me.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/routes/me.js)
+- Created: [`test/api.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/api.test.js)
+- Modified: [`server/app.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/app.js)
+- Modified: [`src/engine/schedulerEngine.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/engine/schedulerEngine.js)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm test`: 26 of 26 tests passed across all 5 test suites.
+- Rollback demo proved 0 partial records remain in `SimulationRuns`, `GanttSlots`, or `RunMetrics`.
+- Independent SQL verification returned 0 mismatches for 40 distinct simulation permutations (8 algorithms × 5 presets).
+
+### Open Issues / Notes
+- None. Ready for Phase 6 (Frontend integration).
