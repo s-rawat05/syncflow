@@ -232,3 +232,53 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 
 ### Open Issues / Notes
 - None. Ready for Phase 6 (Frontend integration).
+
+---
+
+## Phase 6 — Frontend Integration
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. **Frontend API Client:** Created [`src/services/apiClient.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/services/apiClient.js) to manage HTTP requests, token persistence in `localStorage`, unified error parsing, and reactive health check detection with offline fallback notification.
+2. **Authentication Flow:** Implemented [`src/components/Auth/AuthModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Auth/AuthModal.jsx) (Sign In and Sign Up with demo account quick-fill buttons) and [`src/components/Auth/UserMenu.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Auth/UserMenu.jsx) displaying user info, logout action, link to stats, and an "offline — guest mode" indicator when the backend server is unreachable.
+3. **Scenarios Manager:** Built [`src/components/Scenarios/ScenariosModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Scenarios/ScenariosModal.jsx) with 4 tabs:
+   - **My Scenarios:** Lists user's scenarios with process count, run count, and actions to load into editor, duplicate, toggle public/private, or delete.
+   - **Public Workloads:** Browses and loads community scenarios shared by other users.
+   - **Save Current Workload:** Persists current processes with title, description, and privacy flag; handles HTTP 409 locked-scenario errors with "Save as Copy" guidance.
+   - **Import JSON:** Allows uploading a `.json` file or pasting JSON arrays to save directly into the database.
+4. **History & Verification Replay:** Built [`src/components/History/HistoryView.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/History/HistoryView.jsx):
+   - **Saved Runs:** Filterable table by scenario and algorithm with average waiting time, turnaround time, CPU utilization, and timestamp.
+   - **Gantt Replay:** Clicking "Replay" reconstructs and plays back the exact Gantt timeline from stored `GanttSlots` and displays `RunMetrics` without re-simulating.
+   - **SQL Integrity Badge:** Checks `/api/runs/:id/verify` to display "SQL verified ✓ 0 mismatches" or itemizes anomalies from `vw_metrics_mismatch`.
+   - **Leaderboard:** Live scenario standings ranked by SQL window function `RANK() OVER (PARTITION BY ScenarioID ORDER BY AvgWT)` with medal icons (🥇, 🥈, 🥉).
+5. **My Activity & Stats:** Built [`src/components/Dashboard/MyStatsModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Dashboard/MyStatsModal.jsx) displaying scenario count, run count, favorite algorithm, and last activity from `vw_user_activity`.
+6. **Main Navigation & Simulation Controls Integration:**
+   - Updated [`src/components/Navbar.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Navbar.jsx) with History tab, Scenarios button, and UserMenu.
+   - Updated [`src/App.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/App.jsx) with a "Save Run" button on the Simulator Gantt card and mounted all modals.
+   - Updated [`src/components/RaceMode/ComparisonView.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/RaceMode/ComparisonView.jsx) with a "Save Race" button to batch-save all selected algorithm runs in one atomic transaction under a shared `RaceGroup`.
+7. **Guest Mode Preservation:** Unauthenticated users can continue to use the simulator, race mode, and export features completely uninterrupted without requiring login or a backend connection.
+
+### Files Changed / Created
+- Created: [`src/services/apiClient.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/services/apiClient.js)
+- Created: [`src/components/Auth/AuthModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Auth/AuthModal.jsx)
+- Created: [`src/components/Auth/UserMenu.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Auth/UserMenu.jsx)
+- Created: [`src/components/Dashboard/MyStatsModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Dashboard/MyStatsModal.jsx)
+- Created: [`src/components/Scenarios/ScenariosModal.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Scenarios/ScenariosModal.jsx)
+- Created: [`src/components/History/HistoryView.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/History/HistoryView.jsx)
+- Modified: [`src/components/Navbar.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/Navbar.jsx)
+- Modified: [`src/components/RaceMode/ComparisonView.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/components/RaceMode/ComparisonView.jsx)
+- Modified: [`src/App.jsx`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/src/App.jsx)
+- Modified: [`vite.config.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/vite.config.js)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm run build`: Exit code 0 (Vite client build succeeded in 3.04s).
+- `npm test`: 26 of 26 tests passed.
+- Guest mode fully functional; all logged-in views styled consistently with dark glassmorphic design system.
+
+### Open Issues / Notes
+- None. Ready for Phase 7 (Demo data, SQL queries, index evidence).
+
