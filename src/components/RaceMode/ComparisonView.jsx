@@ -4,13 +4,27 @@ import { ALGORITHM_OPTIONS } from '../ControlsPanel';
 import BestPerformerBadge from './BestPerformerBadge';
 import PerformanceChart from './PerformanceChart';
 import PlaybackBar from '../GanttChart/PlaybackBar';
-import { Trophy, Check, Play, Pause } from 'lucide-react';
+import { Trophy, Check, Play, Pause, Save, CheckCircle2, AlertCircle } from 'lucide-react';
+import { api } from '../../services/apiClient';
 
-export default function ComparisonView({ processes, timeQuantum, csOverhead, agingEnabled, agingInterval }) {
+export default function ComparisonView({
+  processes,
+  timeQuantum,
+  csOverhead,
+  agingEnabled,
+  agingInterval,
+  currentUser,
+  onOpenAuth,
+  activeScenarioId,
+  onEnsureScenario
+}) {
   const [selectedAlgos, setSelectedAlgos] = useState(['FCFS', 'SJF', 'SRTF', 'RR']);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isSavingRace, setIsSavingRace] = useState(false);
+  const [raceSaveMessage, setRaceSaveMessage] = useState(null);
+  const [raceSaveError, setRaceSaveError] = useState(null);
 
   const toggleAlgo = (id) => {
     if (selectedAlgos.includes(id)) {
@@ -70,6 +84,60 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
     return () => clearInterval(interval);
   }, [isPlaying, maxDuration, playbackSpeed]);
 
+  const handleSaveRace = async () => {
+    if (!currentUser) {
+      onOpenAuth();
+      return;
+    }
+
+    setIsSavingRace(true);
+    setRaceSaveMessage(null);
+    setRaceSaveError(null);
+
+    try {
+      let scenarioId = activeScenarioId;
+      if (!scenarioId) {
+        scenarioId = await onEnsureScenario();
+      }
+
+      const raceGroup = `Race_${Date.now()}`;
+      const runs = results.map(res => ({
+        algorithmCode: res.algorithmId,
+        quantum: (res.algorithmId === 'RR' || res.algorithmId === 'MLQ') ? timeQuantum : null,
+        contextSwitchTime: csOverhead,
+        agingInterval: agingEnabled ? agingInterval : null,
+        slots: (res.timeline || []).map((block, idx) => ({
+          seq: idx + 1,
+          slotType: block.type === 'idle' ? 'IDLE' : block.type === 'cs' ? 'CS' : 'RUN',
+          pid: (block.type === 'idle' || block.type === 'cs') ? null : block.pid,
+          startTime: block.start,
+          endTime: block.end
+        })),
+        metrics: (res.processMetrics || []).map(m => ({
+          pid: m.pid,
+          completionTime: m.completionTime,
+          turnaroundTime: m.turnaroundTime,
+          waitingTime: m.waitingTime,
+          responseTime: m.responseTime
+        }))
+      }));
+
+      const res = await api.saveRace({
+        scenarioId,
+        raceGroup,
+        runs
+      });
+
+      setRaceSaveMessage(`Successfully saved ${res.savedRunsCount} race simulation runs to the database!`);
+      setTimeout(() => setRaceSaveMessage(null), 5000);
+    } catch (err) {
+      setRaceSaveError(err.data?.error || err.message || 'Failed to save race runs');
+      setTimeout(() => setRaceSaveError(null), 6000);
+    } finally {
+      setIsSavingRace(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -84,14 +152,40 @@ export default function ComparisonView({ processes, timeQuantum, csOverhead, agi
             <p className="text-xs text-slate-400">Select 2 to 6 algorithms to race on the current process workload</p>
           </div>
 
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-90 transition-all shadow-lg shadow-purple-500/25"
-          >
-            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-            <span>{isPlaying ? 'Pause Race' : 'Start Race'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSaveRace}
+              disabled={isSavingRace}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-purple-200 bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 transition-all shadow-sm"
+              title="Save all compared algorithms to the database in one transaction"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSavingRace ? 'Saving...' : 'Save Race'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-90 transition-all shadow-lg shadow-purple-500/25"
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+              <span>{isPlaying ? 'Pause Race' : 'Start Race'}</span>
+            </button>
+          </div>
         </div>
+
+        {raceSaveMessage && (
+          <div className="mb-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{raceSaveMessage}</span>
+          </div>
+        )}
+
+        {raceSaveError && (
+          <div className="mb-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400" />
+            <span>{raceSaveError}</span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           {ALGORITHM_OPTIONS.map((algo) => {

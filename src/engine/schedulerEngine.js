@@ -690,7 +690,7 @@ export function simulateMLQ(processes, options = {}) {
     arrivalTime: Math.max(0, p.arrivalTime || 0),
     burstTime: Math.max(1, p.burstTime || 1),
     remainingTime: Math.max(1, p.burstTime || 1),
-    queueLevel: p.queueLevel !== undefined ? p.queueLevel : (p.priority <= 2 ? 0 : 1),
+    queueLevel: p.queueLevel !== undefined ? (Number(p.queueLevel) === 0 ? 0 : 1) : (p.priority <= 2 ? 0 : 1),
     color: getProcessColor(i),
     completed: false
   }));

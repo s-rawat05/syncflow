@@ -1,7 +1,23 @@
 import React from 'react';
-import { Cpu, Play, BarChart3, BookOpen, Sparkles, Download, Layers, ShieldAlert } from 'lucide-react';
+import { Cpu, Play, BarChart3, BookOpen, Sparkles, Download, Layers, History } from 'lucide-react';
+import UserMenu from './Auth/UserMenu';
 
-export default function Navbar({ activeTab, setActiveTab, onRunSimulation, onOpenExport, presets, selectedPreset, onLoadPreset }) {
+export default function Navbar({
+  activeTab,
+  setActiveTab,
+  onRunSimulation,
+  onOpenExport,
+  presets,
+  selectedPreset,
+  onLoadPreset,
+  currentUser,
+  onOpenAuth,
+  onLogout,
+  onOpenStats,
+  onOpenScenarios,
+  isServerOnline,
+  activeScenarioTitle
+}) {
   return (
     <header className="sticky top-0 z-40 bg-[#0A0A0F]/80 backdrop-blur-xl border-b border-white/10 px-4 lg:px-8 py-3 transition-all">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -22,7 +38,7 @@ export default function Navbar({ activeTab, setActiveTab, onRunSimulation, onOpe
                 Sync<span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">Flow</span>
               </span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                v2.5
+                v2.5 + DB
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">Watch your CPU think.</p>
@@ -56,6 +72,18 @@ export default function Navbar({ activeTab, setActiveTab, onRunSimulation, onOpe
           </button>
 
           <button
+            onClick={() => setActiveTab('history')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'history'
+                ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40 shadow-sm shadow-purple-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <History className="w-3.5 h-3.5 text-purple-400" />
+            <span>History & Leaderboard</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('demos')}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeTab === 'demos'
@@ -82,13 +110,29 @@ export default function Navbar({ activeTab, setActiveTab, onRunSimulation, onOpe
           </button>
         </nav>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
+        {/* Action Controls & User Auth */}
+        <div className="flex items-center gap-2">
+          
+          {/* Scenarios Manager Modal CTA */}
+          <button
+            onClick={onOpenScenarios}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+              activeScenarioTitle
+                ? 'bg-purple-600/20 text-purple-200 border-purple-500/40'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+            }`}
+            title="Open Scenarios Manager"
+          >
+            <Layers className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden xl:inline">{activeScenarioTitle ? `Scenario: ${activeScenarioTitle}` : 'Scenarios'}</span>
+            <span className="xl:hidden">Scenarios</span>
+          </button>
+
           {/* Preset Selector Dropdown */}
           <select
             value={selectedPreset}
             onChange={(e) => onLoadPreset(e.target.value)}
-            className="glass-input text-xs rounded-xl px-2.5 py-1.5 text-slate-300 cursor-pointer hidden md:block max-w-[140px] truncate"
+            className="glass-input text-xs rounded-xl px-2.5 py-1.5 text-slate-300 cursor-pointer hidden lg:block max-w-[130px] truncate"
             title="Load Textbook Preset"
           >
             <option value="" disabled className="bg-[#13131F] text-slate-400">Load Preset...</option>
@@ -111,11 +155,21 @@ export default function Navbar({ activeTab, setActiveTab, onRunSimulation, onOpe
           {/* Run Simulation Primary CTA */}
           <button
             onClick={onRunSimulation}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 via-violet-600 to-pink-500 hover:opacity-90 active:scale-95 shadow-lg shadow-purple-500/25 transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 via-violet-600 to-pink-500 hover:opacity-90 active:scale-95 shadow-lg shadow-purple-500/25 transition-all"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
             <span>Simulate</span>
           </button>
+
+          {/* Auth & User Menu Component */}
+          <UserMenu
+            currentUser={currentUser}
+            onOpenAuth={onOpenAuth}
+            onLogout={onLogout}
+            onOpenStats={onOpenStats}
+            isServerOnline={isServerOnline}
+          />
+
         </div>
 
       </div>
