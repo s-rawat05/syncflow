@@ -68,3 +68,48 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 
 ### Open Issues / Notes
 - None. Ready for Phase 2 (Backend skeleton and schema).
+
+---
+
+## Phase 2 — Backend Skeleton and Schema
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. Configured backend skeleton in `server/` with Express app (`server/app.js`), database connection manager (`server/db/connection.js`), and server entrypoint (`server/index.js`).
+2. Installed dependencies: `better-sqlite3`, `express`, `cors`, `dotenv`, `bcryptjs`, `jsonwebtoken`. Verified `better-sqlite3` native bindings compile and run successfully on Windows Node v22.
+3. Created complete declarative SQL schema in [`server/db/schema.sql`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/schema.sql) with tables (`Users`, `Scenarios`, `Processes`, `Algorithms`, `SimulationRuns`, `RunQueueConfig`, `GanttSlots`, `RunMetrics`), views, triggers, and indexes. Every constraint, trigger, view, and index is documented with a dedicated comment identifying the DBMS concept.
+4. Created lookup seed script in [`server/db/seed_lookup.sql`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/seed_lookup.sql) with reference rows for all 8 algorithms (`FCFS`, `SJF`, `SRTF`, `PRIORITY_NP`, `PRIORITY_P`, `RR`, `MLQ`, `MLFQ`).
+5. Implemented `npm run db:reset` via [`server/db/reset.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/reset.js) that drops existing objects, recreates schema from `schema.sql`, and seeds lookup data.
+6. Enforced `PRAGMA foreign_keys = ON;` on every database connection.
+7. Implemented core and extra triggers:
+   - `trg_run_quantum_rule`: Cross-table quantum integrity constraint.
+   - `trg_slot_no_overlap`: Temporal mutual exclusion on single CPU core.
+   - `trg_lock_processes_insert`, `trg_lock_processes_update`, `trg_lock_processes_delete`: Preserves historical input reproducibility while permitting cascading delete of parent scenarios.
+   - `trg_scenarios_touch`: Automatic timestamp maintenance on scenario update.
+   - `trg_slot_pid_valid`: Verifies slot PID exists in run scenario.
+   - `trg_slot_after_arrival`: Guarantees slot does not start before process arrival.
+   - `trg_metrics_pid_valid`: Verifies metrics PID exists in run scenario.
+   - `trg_immutable_ganttslots`, `trg_immutable_runmetrics`: Append-only immutability.
+8. Authored and verified DB test suite in [`test/schema.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/schema.test.js).
+
+### Files Changed / Created
+- Created: [`server/db/schema.sql`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/schema.sql)
+- Created: [`server/db/seed_lookup.sql`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/seed_lookup.sql)
+- Created: [`server/db/connection.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/connection.js)
+- Created: [`server/db/reset.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/reset.js)
+- Created: [`server/app.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/app.js)
+- Created: [`server/index.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/index.js)
+- Created: [`test/schema.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/schema.test.js)
+- Modified: [`package.json`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/package.json)
+- Modified: [`package-lock.json`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/package-lock.json)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm run db:reset`: Exit code 0 (database reset and seeded cleanly).
+- `npm test`: 13 of 13 tests passed (all 6 engine baseline tests + all 7 DB schema, constraint, trigger, and cascade tests passed).
+
+### Open Issues / Notes
+- None. Ready for Phase 3 (Views: analytics and verification).
