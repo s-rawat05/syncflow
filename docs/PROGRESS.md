@@ -333,4 +333,61 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 ### Open Issues / Notes
 - None. Ready for Phase 8 (Documentation & final delivery).
 
+---
+
+## Phase 8 — Documentation & Final Delivery
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. **Entity-Relationship Diagram ([`docs/ER_DIAGRAM.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/ER_DIAGRAM.md)):**
+   - Authored complete Mermaid `erDiagram` modeling all 8 tables (`Users`, `Scenarios`, `Processes`, `Algorithms`, `SimulationRuns`, `RunQueueConfig`, `GanttSlots`, `RunMetrics`).
+   - Documented attributes, data types, nullability, primary keys, foreign keys, unique candidate keys, and referential actions (`ON DELETE CASCADE` and `ON DELETE RESTRICT`).
+2. **DBMS Architectural Report ([`docs/DBMS_NOTES.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/DBMS_NOTES.md)):**
+   - Detailed formal normalization walkthrough from unnormalized simulation records ($\text{UNF} \to \text{1NF} \to \text{2NF} \to \text{3NF}$) with insertion/update/deletion anomaly analysis and formal functional dependencies per table.
+   - Cataloged every integrity constraint, active database trigger, computed view, and physical B-tree index alongside the theoretical DBMS concept demonstrated.
+   - Documented rationale for intentional denormalization of `RunMetrics` to enable independent SQL verification via `vw_metrics_mismatch`.
+   - Analyzed architectural trade-offs: Process Locking vs. Per-Run Workload Snapshotting.
+   - Documented ACID transaction atomicity and the `failAfterSlots: N` rollback demonstration.
+3. **System Architecture Document ([`docs/ARCHITECTURE.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/ARCHITECTURE.md)):**
+   - Illustrated system topology across React 19 frontend, pure scheduling engine, Express API, and SQLite database.
+   - Detailed dual-mode operation: Guest Mode (100% offline in-browser execution) vs. Logged-in Mode (relational persistence, history replay, leaderboards, stats).
+   - Authored Mermaid sequence diagrams for Simulation & Persistence and Database Replay & Verification.
+4. **Testing Guide & Proof Matrix ([`docs/TESTING.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/TESTING.md)):**
+   - Documented testing framework commands and detailed proof matrix covering all 26 tests across all 5 test suites.
+5. **Project README ([`README.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/README.md)):**
+   - Updated with project introduction, complete local setup instructions, environment variable configuration, database seeding commands, feature list, and static vs. full-stack deployment notes.
+
+### Files Changed / Created
+- Created: [`docs/ER_DIAGRAM.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/ER_DIAGRAM.md)
+- Created: [`docs/DBMS_NOTES.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/DBMS_NOTES.md)
+- Created: [`docs/ARCHITECTURE.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/ARCHITECTURE.md)
+- Created: [`docs/TESTING.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/TESTING.md)
+- Modified: [`README.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/README.md)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- All Phase 8 documents created and verified.
+- `npm run build`: Exit code 0 (Vite client production bundle built cleanly).
+- `npm test`: 26 of 26 tests passed (100% pass rate).
+- `npm run db:reset` & `npm run db:seed-demo`: Exit code 0.
+- `npm run docs:queries`: Exit code 0.
+
+---
+
+## 12. Final Definition of Done Verification Checklist
+
+- [x] `docs/AUDIT.md` complete.
+- [x] Engine tests A and B pass with the spec's exact expected values; RR test documented.
+- [x] `schema.sql` builds the full DB from scratch; `db:reset` and `db:seed-demo` work on a fresh clone.
+- [x] All constraint, trigger, view, API and rollback tests pass.
+- [x] `/verify` returns 0 mismatches for every algorithm on every seeded scenario.
+- [x] Logged-in features work end to end; guest mode is unchanged; `npm run build` succeeds.
+- [x] `SQL_QUERIES.md` is generated from real query output; EXPLAIN plans are included.
+- [x] All docs in Phase 8 are written and accurate to the code.
+- [x] `PROGRESS.md` has an entry per phase; there is one commit per phase on `feature/database`.
+
+
 
