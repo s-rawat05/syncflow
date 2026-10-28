@@ -113,3 +113,36 @@ Project-Based Learning (PBL) Build Progress and Audit Trail.
 
 ### Open Issues / Notes
 - None. Ready for Phase 3 (Views: analytics and verification).
+
+---
+
+## Phase 3 — Views (Analytics and Verification)
+
+- **Date:** 2026-10-28
+- **Branch:** `feature/database`
+- **Status:** COMPLETED
+
+### What Was Done
+1. Implemented analytical and integrity verification views in [`server/db/schema.sql`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/server/db/schema.sql):
+   - **`vw_metrics_recomputed`**: Recomputes CompletionTime, TurnaroundTime, WaitingTime, ResponseTime, and ExecutedTime from raw Gantt slots alone.
+   - **`vw_metrics_mismatch`**: Independent verification view utilizing `UNION ALL` across four discrepancy checks (`METRIC_MISMATCH`, `EXECUTED_NOT_EQUAL_BURST`, `PROCESS_NEVER_RAN`, `METRICS_MISSING`). Must yield 0 rows for valid runs.
+   - **`vw_run_summary`**: Aggregate analytical view computing process count, average metrics (WT, TAT, RT rounded to 2 decimals), makespan, CPU utilization % (1 decimal), throughput (3 decimals), and context switch count using Common Table Expressions (CTEs) to prevent Cartesian product inflation.
+   - **`vw_algorithm_leaderboard`**: Ranks each algorithm's best run per scenario using `RANK() OVER (PARTITION BY ScenarioID ORDER BY AvgWT ASC, AvgTAT ASC)`.
+   - **`vw_user_activity`**: Aggregates scenarios, run counts, most used algorithm, and last activity per user, using `LEFT JOIN` so users with 0 runs are retained.
+2. Created test suite [`test/views.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/views.test.js) validating:
+   - Saving Test A FCFS produces exactly 0 mismatch rows in `vw_metrics_mismatch`.
+   - Tampering with a single metric (setting WaitingTime to 99) flags exactly 1 `METRIC_MISMATCH` anomaly.
+   - Flagging unexecuted processes (`PROCESS_NEVER_RAN`), burst duration discrepancies (`EXECUTED_NOT_EQUAL_BURST`), and missing metrics (`METRICS_MISSING`).
+   - Summary statistics and leaderboard rankings match hand calculations for Test A (FCFS vs. SJF).
+   - Inactive users are represented in `vw_user_activity` with 0 runs and 'None' for most-used algorithm.
+
+### Files Changed / Created
+- Created: [`test/views.test.js`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/test/views.test.js)
+- Modified: [`docs/PROGRESS.md`](file:///c:/Users/Sahil%20Rawat/.gemini/antigravity/scratch/syncflow/docs/PROGRESS.md)
+
+### Check Results
+- `npm test`: 18 of 18 tests passed across 3 test suites (`engine.test.js`, `schema.test.js`, `views.test.js`).
+- Verification logic proved 100% sound on both authentic and artificially perturbed scheduling data.
+
+### Open Issues / Notes
+- None. Ready for Phase 4 (Auth API).
